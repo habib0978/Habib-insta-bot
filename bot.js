@@ -3,8 +3,8 @@ const { IgApiClient } = require('instagram-private-api');
 const ig = new IgApiClient();
 
 // 🔐 env config
-const USERNAME = process.env.USERNAME;
-const PASSWORD = process.env.PASSWORD;
+const USERNAME = process.env.habib_insta_chatbot;
+const PASSWORD = process.env.78657865;
 const ADMINS = process.env.ADMINS ? process.env.ADMINS.split(",") : [];
 
 // 🧠 memory
