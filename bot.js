@@ -2,33 +2,26 @@ const { IgApiClient } = require('instagram-private-api');
 
 const ig = new IgApiClient();
 
-// 🔐 তোমার info
-const USERNAME = "your_username";
-const PASSWORD = "your_password";
-const ADMINS = ["your_user_id"];
+// 🔐 env config
+const USERNAME = process.env.USERNAME;
+const PASSWORD = process.env.PASSWORD;
+const ADMINS = process.env.ADMINS ? process.env.ADMINS.split(",") : [];
 
 // 🧠 memory
 let seenMessages = new Set();
+let gameState = {};
 
-// 🎯 command system
+// 🎯 commands
 const commands = {
 
   ping: async () => "🏓 Pong!",
 
   help: async () => `
 📜 Commands:
-!ping
-!help
-!echo <text>
-!time
-!random
-!hi
-!love
-!joke
-!flip
-!math 2+2
-!info
-!admin
+!ping !help !echo !time !random
+!hi !love !joke !flip !math
+!guess !rps !quiz !answer
+!info !admin
 `,
 
   echo: async (args) => args.join(" ") || "Nothing to echo!",
@@ -41,26 +34,64 @@ const commands = {
 
   love: async () => "❤️ Love you!",
 
-  joke: async () => "😂 I tried to fix bugs... now I have more bugs!",
+  joke: async () => "😂 Bot life = bug life!",
 
   flip: async () => Math.random() > 0.5 ? "🪙 Head" : "🪙 Tail",
 
   math: async (args) => {
     try {
-      let result = eval(args.join(" "));
-      return "🧮 " + result;
+      return "🧮 " + eval(args.join(" "));
     } catch {
       return "❌ Invalid math!";
     }
   },
 
-  info: async (args, userId) => {
-    return `👤 User ID: ${userId}`;
-  },
+  info: async (args, userId) => `👤 User ID: ${userId}`,
 
   admin: async (args, userId) => {
     if (!ADMINS.includes(userId)) return "❌ Not admin!";
-    return "👑 Admin access granted!";
+    return "👑 Admin OK";
+  },
+
+  // 🎮 GAMES
+  guess: async (args, userId) => {
+    if (!gameState[userId]) {
+      gameState[userId] = { number: Math.floor(Math.random() * 10) + 1 };
+      return "🎯 Guess number (1-10)";
+    }
+    if (parseInt(args[0]) === gameState[userId].number) {
+      delete gameState[userId];
+      return "🎉 Correct!";
+    }
+    return "❌ Try again";
+  },
+
+  rps: async (args) => {
+    const c = ["rock", "paper", "scissors"];
+    const bot = c[Math.floor(Math.random() * 3)];
+    const user = args[0]?.toLowerCase();
+    if (!c.includes(user)) return "Use: !rps rock/paper/scissors";
+    if (user === bot) return `🤝 Draw (${bot})`;
+    if (
+      (user === "rock" && bot === "scissors") ||
+      (user === "paper" && bot === "rock") ||
+      (user === "scissors" && bot === "paper")
+    ) return `🎉 You win (${bot})`;
+    return `😢 Lose (${bot})`;
+  },
+
+  quiz: async (args, userId) => {
+    gameState[userId] = { answer: "paris" };
+    return "❓ Capital of France?";
+  },
+
+  answer: async (args, userId) => {
+    if (!gameState[userId]) return "❌ No quiz!";
+    if (args.join(" ").toLowerCase() === gameState[userId].answer) {
+      delete gameState[userId];
+      return "🎉 Correct!";
+    }
+    return "❌ Wrong";
   }
 };
 
@@ -77,64 +108,33 @@ async function startBot() {
       const threads = await inbox.items();
 
       for (let thread of threads) {
-        const threadId = thread.thread_id;
         const lastMsg = thread.items[0];
-
         if (!lastMsg || !lastMsg.text) continue;
 
-        // 🚫 duplicate avoid
         if (seenMessages.has(lastMsg.item_id)) continue;
         seenMessages.add(lastMsg.item_id);
 
         const text = lastMsg.text.trim();
         const userId = lastMsg.user_id?.toString();
+        const threadId = thread.thread_id;
 
-        console.log(`📩 ${text}`);
-
-        // 🎯 command detect
         if (text.startsWith("!")) {
           const parts = text.slice(1).split(" ");
-          const cmdName = parts[0].toLowerCase();
+          const cmd = commands[parts[0].toLowerCase()];
           const args = parts.slice(1);
 
-          const cmd = commands[cmdName];
+          let reply = cmd
+            ? await cmd(args, userId)
+            : "❓ Unknown command";
 
-          if (cmd) {
-            let reply = await cmd(args, userId);
-
-            await ig.entity
-              .directThread(threadId)
-              .broadcastText(reply);
-          } else {
-            await ig.entity
-              .directThread(threadId)
-              .broadcastText("❓ Unknown command");
-          }
-        }
-
-        // 🤖 auto reply
-        else {
-          if (text.toLowerCase().includes("hello")) {
-            await ig.entity
-              .directThread(threadId)
-              .broadcastText("Hey there! 👋");
-          }
-
-          if (text.toLowerCase().includes("bye")) {
-            await ig.entity
-              .directThread(threadId)
-              .broadcastText("Goodbye 👋");
-          }
-
-          if (text.toLowerCase().includes("thanks")) {
-            await ig.entity
-              .directThread(threadId)
-              .broadcastText("Welcome 😊");
-          }
+          await ig.entity.directThread(threadId).broadcastText(reply);
+        } else {
+          if (text.toLowerCase().includes("hello"))
+            await ig.entity.directThread(threadId).broadcastText("Hey 👋");
         }
       }
-    } catch (err) {
-      console.log("⚠️ Error:", err.message);
+    } catch (e) {
+      console.log("⚠️ Error:", e.message);
     }
   }, 5000);
 }
