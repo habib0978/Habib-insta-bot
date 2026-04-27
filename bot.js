@@ -2,16 +2,22 @@ const { IgApiClient } = require('instagram-private-api');
 
 const ig = new IgApiClient();
 
-// 🔐 env config
-const USERNAME = process.env.habib_insta_chatbot;
-const PASSWORD = process.env.78657865;
+// 🔐 ENV CONFIG (FIXED)
+const habib_insta_chatbot = process.env.USERNAME;
+const 78657865 = process.env.PASSWORD;
 const ADMINS = process.env.ADMINS ? process.env.ADMINS.split(",") : [];
+
+// ❗ safety check
+if (!USERNAME || !PASSWORD) {
+  console.log("❌ USERNAME or PASSWORD missing in ENV");
+  process.exit(1);
+}
 
 // 🧠 memory
 let seenMessages = new Set();
 let gameState = {};
 
-// 🎯 commands
+// 🎯 COMMANDS
 const commands = {
 
   ping: async () => "🏓 Pong!",
@@ -95,48 +101,59 @@ const commands = {
   }
 };
 
-// 🤖 bot start
+// 🤖 BOT START
 async function startBot() {
-  ig.state.generateDevice(USERNAME);
-  await ig.account.login(USERNAME, PASSWORD);
+  try {
+    ig.state.generateDevice(USERNAME);
+    await ig.account.login(USERNAME, PASSWORD);
 
-  console.log("✅ Logged in");
+    console.log("✅ Logged in");
 
-  setInterval(async () => {
-    try {
-      const inbox = ig.feed.directInbox();
-      const threads = await inbox.items();
+    setInterval(async () => {
+      try {
+        const inbox = ig.feed.directInbox();
+        const threads = await inbox.items();
 
-      for (let thread of threads) {
-        const lastMsg = thread.items[0];
-        if (!lastMsg || !lastMsg.text) continue;
+        for (let thread of threads) {
+          const lastMsg = thread.items[0];
+          if (!lastMsg || !lastMsg.text) continue;
 
-        if (seenMessages.has(lastMsg.item_id)) continue;
-        seenMessages.add(lastMsg.item_id);
+          if (seenMessages.has(lastMsg.item_id)) continue;
+          seenMessages.add(lastMsg.item_id);
 
-        const text = lastMsg.text.trim();
-        const userId = lastMsg.user_id?.toString();
-        const threadId = thread.thread_id;
+          const text = lastMsg.text.trim();
+          const userId = lastMsg.user_id?.toString();
+          const threadId = thread.thread_id;
 
-        if (text.startsWith("!")) {
-          const parts = text.slice(1).split(" ");
-          const cmd = commands[parts[0].toLowerCase()];
-          const args = parts.slice(1);
+          console.log(`📩 ${text}`);
 
-          let reply = cmd
-            ? await cmd(args, userId)
-            : "❓ Unknown command";
+          if (text.startsWith("!")) {
+            const parts = text.slice(1).split(" ");
+            const cmd = commands[parts[0].toLowerCase()];
+            const args = parts.slice(1);
 
-          await ig.entity.directThread(threadId).broadcastText(reply);
-        } else {
-          if (text.toLowerCase().includes("hello"))
-            await ig.entity.directThread(threadId).broadcastText("Hey 👋");
+            let reply = cmd
+              ? await cmd(args, userId)
+              : "❓ Unknown command";
+
+            await ig.entity.directThread(threadId).broadcastText(reply);
+          } else {
+            if (text.toLowerCase().includes("hello")) {
+              await ig.entity.directThread(threadId).broadcastText("Hey 👋");
+            }
+            if (text.toLowerCase().includes("bye")) {
+              await ig.entity.directThread(threadId).broadcastText("Goodbye 👋");
+            }
+          }
         }
+      } catch (err) {
+        console.log("⚠️ Loop Error:", err.message);
       }
-    } catch (e) {
-      console.log("⚠️ Error:", e.message);
-    }
-  }, 5000);
+    }, 5000);
+
+  } catch (err) {
+    console.log("❌ Login Error:", err.message);
+  }
 }
 
 startBot();
