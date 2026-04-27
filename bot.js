@@ -5,44 +5,62 @@ const ig = new IgApiClient();
 // 🔐 তোমার info
 const USERNAME = "your_username";
 const PASSWORD = "your_password";
-
-// 👑 admin user ids (নিজেরটা বসাও)
 const ADMINS = ["your_user_id"];
 
 // 🧠 memory
 let seenMessages = new Set();
 
-// 🔹 command system
+// 🎯 command system
 const commands = {
 
-  ping: async () => "Pong! 🏓",
+  ping: async () => "🏓 Pong!",
 
-  help: async () => {
-    return `
-Commands:
+  help: async () => `
+📜 Commands:
 !ping
 !help
 !echo <text>
 !time
 !random
 !hi
-!admin (admin only)
-`;
-  },
+!love
+!joke
+!flip
+!math 2+2
+!info
+!admin
+`,
 
   echo: async (args) => args.join(" ") || "Nothing to echo!",
 
-  time: async () => new Date().toLocaleString(),
+  time: async () => "🕒 " + new Date().toLocaleString(),
 
   random: async () => "🎲 " + Math.floor(Math.random() * 100),
 
   hi: async () => "Hello 👋",
 
-  admin: async (args, userId) => {
-    if (!ADMINS.includes(userId)) {
-      return "❌ You are not admin!";
+  love: async () => "❤️ Love you!",
+
+  joke: async () => "😂 I tried to fix bugs... now I have more bugs!",
+
+  flip: async () => Math.random() > 0.5 ? "🪙 Head" : "🪙 Tail",
+
+  math: async (args) => {
+    try {
+      let result = eval(args.join(" "));
+      return "🧮 " + result;
+    } catch {
+      return "❌ Invalid math!";
     }
-    return "👑 Admin command executed!";
+  },
+
+  info: async (args, userId) => {
+    return `👤 User ID: ${userId}`;
+  },
+
+  admin: async (args, userId) => {
+    if (!ADMINS.includes(userId)) return "❌ Not admin!";
+    return "👑 Admin access granted!";
   }
 };
 
@@ -64,16 +82,16 @@ async function startBot() {
 
         if (!lastMsg || !lastMsg.text) continue;
 
-        // ❌ duplicate avoid
+        // 🚫 duplicate avoid
         if (seenMessages.has(lastMsg.item_id)) continue;
         seenMessages.add(lastMsg.item_id);
 
         const text = lastMsg.text.trim();
         const userId = lastMsg.user_id?.toString();
 
-        console.log(`📩 ${text} (from ${userId})`);
+        console.log(`📩 ${text}`);
 
-        // 🔹 command check
+        // 🎯 command detect
         if (text.startsWith("!")) {
           const parts = text.slice(1).split(" ");
           const cmdName = parts[0].toLowerCase();
@@ -90,16 +108,28 @@ async function startBot() {
           } else {
             await ig.entity
               .directThread(threadId)
-              .broadcastText("❓ Unknown command. Type !help");
+              .broadcastText("❓ Unknown command");
           }
         }
 
-        // 🔹 auto reply (non-command)
+        // 🤖 auto reply
         else {
           if (text.toLowerCase().includes("hello")) {
             await ig.entity
               .directThread(threadId)
               .broadcastText("Hey there! 👋");
+          }
+
+          if (text.toLowerCase().includes("bye")) {
+            await ig.entity
+              .directThread(threadId)
+              .broadcastText("Goodbye 👋");
+          }
+
+          if (text.toLowerCase().includes("thanks")) {
+            await ig.entity
+              .directThread(threadId)
+              .broadcastText("Welcome 😊");
           }
         }
       }
